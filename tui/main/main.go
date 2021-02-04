@@ -1,22 +1,48 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 
+	"github.com/joho/godotenv"
 	"github.com/lbrooks/warehouse"
-
 	"github.com/rivo/tview"
+	"go.opentelemetry.io/otel"
 )
 
-const WAREHOUSE_SERVER_URL = "http://localhost:8080"
+var apiUrl string
+
+func init() {
+	// loads values from .env into the system
+	if err := godotenv.Load(); err != nil {
+		log.Print("No .env file found")
+	}
+
+	apiUrl = os.Getenv("WAREHOUSE_API_URL")
+	if apiUrl == "" {
+		panic("WAREHOUSE_URL is undefined")
+	}
+}
 
 func getData() []warehouse.Item {
-	resp, err := http.Get(WAREHOUSE_SERVER_URL + "/api/item")
+	sc, span := warehouse.CreateSpan(context.TODO(), "http-req", "fetch-items")
+	defer span.End()
+
+	req, err := http.NewRequest("GET", apiUrl+"/api/item", nil)
 	if err != nil {
-		// handle error
+		panic(err.Error())
+	}
+
+	otel.GetTextMapPropagator().Inject(sc, req.Header)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -24,13 +50,16 @@ func getData() []warehouse.Item {
 	var itemList []warehouse.Item
 	err = json.Unmarshal(body, &itemList)
 	if err != nil {
-		// handle error
+		panic(err.Error())
 	}
 
 	return itemList
 }
 
 func main() {
+	flush := warehouse.InitializeJaeger("warehouse-tui")
+	defer flush()
+
 	items := getData()
 
 	table := tview.NewTable()
