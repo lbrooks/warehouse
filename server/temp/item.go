@@ -2,10 +2,10 @@ package temp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/lbrooks/warehouse"
-	"github.com/lbrooks/warehouse/server"
 
 	"go.opentelemetry.io/otel/label"
 )
@@ -64,7 +64,7 @@ func (m *itemService) initialize(ctx context.Context) {
 }
 
 // NewItemService Create In Memory Storage
-func NewItemService(ctx context.Context, initalizeData bool) server.ItemService {
+func NewItemService(ctx context.Context, initalizeData bool) warehouse.ItemService {
 	sc, span := warehouse.CreateSpan(ctx, "itemService", "NewItemService")
 	defer span.End()
 
@@ -112,11 +112,8 @@ func (m *itemService) Update(ctx context.Context, item warehouse.Item) (string, 
 	sc, span := warehouse.CreateSpan(ctx, "itemService", "Update")
 	defer span.End()
 
-	span.SetAttributes(
-		label.String("barcode", item.Barcode),
-		label.String("name", item.Name),
-		label.Int("quantity", item.Quantity),
-	)
+	j, _ := json.Marshal(item)
+	span.SetAttributes(label.String("item", string(j)))
 
 	matching := m.findItemsMatching(sc, item)
 	if len(matching) == 0 {
