@@ -10,8 +10,8 @@ import (
 	"github.com/lbrooks/warehouse/server/temp"
 	"github.com/lbrooks/warehouse/server/web"
 
-	"github.com/gin-contrib/static"
 	"github.com/joho/godotenv"
+	prom "github.com/zsais/go-gin-prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
@@ -26,12 +26,16 @@ func main() {
 	flush := warehouse.InitializeJaeger("warehouse-server")
 	defer flush()
 
-	webServer := web.NewWebServer()
-	webServer.Use(static.Serve("/", static.LocalFile("/Users/lawrence/projects/inv-client-react/build", false)))
-	webServer.Use(otelgin.Middleware("warehouse-server"))
-	apiRoutes := webServer.Group("api")
-
 	itemService := temp.NewItemService(context.Background(), true)
+
+	webServer := web.NewWebServer()
+
+	p := prom.NewPrometheus("gin")
+	p.Use(webServer)
+
+	webServer.Use(otelgin.Middleware("warehouse-server"))
+
+	apiRoutes := webServer.Group("api")
 	http.AddRoutes(apiRoutes, itemService)
 
 	err := webServer.Run() // listen and serve on 0.0.0.0:8080
