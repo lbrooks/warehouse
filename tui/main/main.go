@@ -5,8 +5,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/lbrooks/warehouse"
-	"github.com/lbrooks/warehouse/tui/gui"
-	"github.com/lbrooks/warehouse/tui/web"
+	"github.com/lbrooks/warehouse/client"
+	"github.com/lbrooks/warehouse/tui"
 )
 
 func init() {
@@ -17,13 +17,15 @@ func init() {
 }
 
 func main() {
-	flush := warehouse.InitializeJaeger("warehouse-tui")
-	defer flush()
+	flush, ok := warehouse.InitializeJaeger()
+	if ok {
+		defer flush()
+	}
 
-	service := web.NewItemService()
+	service := client.NewItemService()
 
-	gui := gui.New(service)
-	if err := gui.Start(); err != nil {
+	tui := tui.New(service)
+	if err := tui.Start(); err != nil {
 		panic(err)
 	}
 }

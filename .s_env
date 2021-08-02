@@ -1,0 +1,2 @@
+JAEGER_SERVICE_NAME=warehouse-server
+PORT=8989
